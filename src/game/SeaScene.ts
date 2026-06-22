@@ -36,6 +36,7 @@ export class SeaScene extends Phaser.Scene {
   private npcs: NpcShip[] = [];
 
   private smoothRoute: SmoothPoint[] = [];
+  private plannedRoute: SmoothPoint[] = [];
   private target?: Point;
 
   private shipPath: TrailPoint[] = [
@@ -47,6 +48,7 @@ export class SeaScene extends Phaser.Scene {
   ];
 
   private spaceKey?: Phaser.Input.Keyboard.Key;
+  private enterKey?: Phaser.Input.Keyboard.Key;
   private graphics?: Phaser.GameObjects.Graphics;
   private hudText?: Phaser.GameObjects.Text;
   private treasuresFound = 0;
@@ -65,6 +67,10 @@ export class SeaScene extends Phaser.Scene {
       Phaser.Input.Keyboard.KeyCodes.SPACE
     );
 
+    this.enterKey = this.input.keyboard?.addKey(
+      Phaser.Input.Keyboard.KeyCodes.ENTER
+    );
+
     this.graphics = this.add.graphics();
 
     this.hudText = this.add.text(8, 8, "", {
@@ -81,6 +87,10 @@ export class SeaScene extends Phaser.Scene {
   }
 
   update() {
+    if (this.enterKey && Phaser.Input.Keyboard.JustDown(this.enterKey)) {
+      this.confirmRoute();
+    }
+
     this.followSmoothRoute();
     this.updateNpcShips();
 
@@ -156,6 +166,8 @@ export class SeaScene extends Phaser.Scene {
   }
 
   private selectTarget(pointer: Phaser.Input.Pointer) {
+    if (this.isPlayerMoving) return;
+
     const x = Math.floor(pointer.x / TILE_SIZE);
     const y = Math.floor(pointer.y / TILE_SIZE);
 
@@ -184,7 +196,16 @@ export class SeaScene extends Phaser.Scene {
     const fullGridPath = [start, ...gridPath];
     const simplified = this.simplifyByLineOfSight(fullGridPath);
 
-    this.smoothRoute = this.buildCatmullRomRoute(simplified);
+    this.plannedRoute = this.buildCatmullRomRoute(simplified);
+    this.smoothRoute = [];
+  }
+
+  private confirmRoute() {
+    if (this.plannedRoute.length === 0) return;
+    if (this.isPlayerMoving) return;
+
+    this.smoothRoute = [...this.plannedRoute];
+    this.plannedRoute = [];
   }
 
   private followSmoothRoute() {
@@ -419,10 +440,11 @@ export class SeaScene extends Phaser.Scene {
         `X: ${this.ship.x} Y: ${this.ship.y}`,
         `Depth: ${cell.depth}`,
         `Treasures: ${this.treasuresFound}`,
-        `NPC ships: ${this.npcs.length}`,
-        `Click: choose destination`,
+        `Click: plan route`,
+        `Enter: confirm sailing`,
         `Space: dig`,
-        `Smooth route: ${this.smoothRoute.length}`,
+        `Planned: ${this.plannedRoute.length}`,
+        `Sailing: ${this.smoothRoute.length}`,
       ].join("\n")
     );
   }
@@ -434,7 +456,7 @@ export class SeaScene extends Phaser.Scene {
 
     this.drawMap();
     this.drawShipPath();
-    this.drawSmoothRoutePreview();
+    this.drawRoutePreview();
     this.drawTarget();
     this.drawNpcShips();
     this.drawPlayerShip();
@@ -448,13 +470,13 @@ export class SeaScene extends Phaser.Scene {
         let color = 0x0077be;
 
         if (cell.type === "island") color = 0x2f7d32;
-else if (cell.hasTreasure) color = 0xffd700;
-else if (cell.depth < 55) color = 0x8eeeff;
-else if (cell.depth < 110) color = 0x3bc7e6;
-else if (cell.depth < 190) color = 0x1291cf;
-else if (cell.depth < 300) color = 0x075aa5;
-else if (cell.depth < 430) color = 0x03367a;
-else color = 0x01183f;
+        else if (cell.hasTreasure) color = 0xffd700;
+        else if (cell.depth < 55) color = 0x8eeeff;
+        else if (cell.depth < 110) color = 0x3bc7e6;
+        else if (cell.depth < 190) color = 0x1291cf;
+        else if (cell.depth < 300) color = 0x075aa5;
+        else if (cell.depth < 430) color = 0x03367a;
+        else color = 0x01183f;
 
         this.graphics.fillStyle(color);
         this.graphics.fillRect(
@@ -483,15 +505,24 @@ else color = 0x01183f;
     }
   }
 
-  private drawSmoothRoutePreview() {
+  private drawRoutePreview() {
     if (!this.graphics) return;
-    if (this.smoothRoute.length === 0) return;
 
-    this.graphics.lineStyle(2, 0xffffff, 0.45);
+    const route =
+      this.smoothRoute.length > 0 ? this.smoothRoute : this.plannedRoute;
+
+    if (route.length === 0) return;
+
+    this.graphics.lineStyle(
+      2,
+      this.smoothRoute.length > 0 ? 0x66ccff : 0xffffff,
+      0.55
+    );
+
     this.graphics.beginPath();
     this.graphics.moveTo(this.shipPx, this.shipPy);
 
-    for (const point of this.smoothRoute) {
+    for (const point of route) {
       this.graphics.lineTo(point.px, point.py);
     }
 
