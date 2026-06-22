@@ -166,8 +166,7 @@ export class SeaScene extends Phaser.Scene {
   }
 
   private selectTarget(pointer: Phaser.Input.Pointer) {
-    if (this.isPlayerMoving) return;
-
+  
     const x = Math.floor(pointer.x / TILE_SIZE);
     const y = Math.floor(pointer.y / TILE_SIZE);
 
@@ -201,12 +200,13 @@ export class SeaScene extends Phaser.Scene {
   }
 
   private confirmRoute() {
-    if (this.plannedRoute.length === 0) return;
-    if (this.isPlayerMoving) return;
+  if (this.plannedRoute.length === 0) return;
 
-    this.smoothRoute = [...this.plannedRoute];
-    this.plannedRoute = [];
-  }
+  this.smoothRoute = [...this.plannedRoute];
+  this.plannedRoute = [];
+
+  this.target = this.target;
+}
 
   private followSmoothRoute() {
     if (this.isPlayerMoving) return;
@@ -249,6 +249,10 @@ export class SeaScene extends Phaser.Scene {
           this.ship.y = this.target.y;
           this.target = undefined;
         }
+        if (this.plannedRoute.length > 0) {
+  this.smoothRoute = [...this.plannedRoute];
+  this.plannedRoute = [];
+}
       },
     });
   }
