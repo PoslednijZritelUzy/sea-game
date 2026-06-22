@@ -100,32 +100,33 @@ export class SeaScene extends Phaser.Scene {
   }
 
   private createSailButton() {
-    this.sailButton = this.add
-      .rectangle(560, 28, 170, 36, 0x00aa44)
-      .setInteractive({ useHandCursor: true })
-      .setDepth(1000);
+  this.sailButton = this.add
+    .rectangle(560, 28, 170, 36, 0x00aa44)
+    .setInteractive({ useHandCursor: true })
+    .setDepth(1000);
 
-    this.sailButtonText = this.add
-      .text(490, 18, "ОТПРАВИТЬСЯ", {
-        fontFamily: "Arial",
-        fontSize: "14px",
-        color: "#ffffff",
-      })
-      .setDepth(1001);
+  this.sailButtonText = this.add
+    .text(490, 18, "ОТПРАВИТЬСЯ", {
+      fontFamily: "Arial",
+      fontSize: "14px",
+      color: "#ffffff",
+    })
+    .setInteractive({ useHandCursor: true })
+    .setDepth(1001);
 
-    this.sailButton.on(
-      "pointerdown",
-      (
-        pointer: Phaser.Input.Pointer,
-        localX: number,
-        localY: number,
-        event: Phaser.Types.Input.EventData
-      ) => {
-        event.stopPropagation();
-        this.confirmRoute();
-      }
-    );
-  }
+  const onClick = (
+    pointer: Phaser.Input.Pointer,
+    localX: number,
+    localY: number,
+    event: Phaser.Types.Input.EventData
+  ) => {
+    event.stopPropagation();
+    this.confirmRoute();
+  };
+
+  this.sailButton.on("pointerdown", onClick);
+  this.sailButtonText.on("pointerdown", onClick);
+}
 
   private cellToPx(value: number): number {
     return value * TILE_SIZE + TILE_SIZE / 2;
@@ -191,8 +192,11 @@ export class SeaScene extends Phaser.Scene {
   }
 
   private selectTarget(pointer: Phaser.Input.Pointer) {
+if (pointer.y < 52 && pointer.x > 470) return;
+
     const x = Math.floor(pointer.x / TILE_SIZE);
     const y = Math.floor(pointer.y / TILE_SIZE);
+    
 
     if (x < 0 || x >= MAP_SIZE) return;
     if (y < 0 || y >= MAP_SIZE) return;
@@ -217,9 +221,9 @@ export class SeaScene extends Phaser.Scene {
     this.target = { x, y };
 
     const fullGridPath = [start, ...gridPath];
-    const simplified = this.simplifyByLineOfSight(fullGridPath);
+const simplified = this.simplifyByLineOfSight(fullGridPath);
 
-    this.plannedRoute = this.buildCatmullRomRoute(simplified);
+this.plannedRoute = this.buildCatmullRomRouteFromCurrentPosition(simplified);
   }
 
   private confirmRoute() {
@@ -376,44 +380,67 @@ export class SeaScene extends Phaser.Scene {
     return true;
   }
 
-  private buildCatmullRomRoute(points: Point[]): SmoothPoint[] {
-    if (points.length < 2) return [];
+  private buildCatmullRomRouteFromCurrentPosition(points: Point[]): SmoothPoint[] {
+  if (points.length < 2) return [];
 
-    const pixelPoints: SmoothPoint[] = points.map((point) => ({
+  const pixelPoints: SmoothPoint[] = [
+    {
+      px: this.shipPx,
+      py: this.shipPy,
+    },
+    ...points.slice(1).map((point) => ({
       px: this.cellToPx(point.x),
       py: this.cellToPx(point.y),
-    }));
+    })),
+  ];
 
-    const result: SmoothPoint[] = [];
+  return this.buildCatmullRomRouteFromPixelPoints(pixelPoints);
+}
 
-    for (let i = 0; i < pixelPoints.length - 1; i++) {
-      const p0 = pixelPoints[Math.max(0, i - 1)];
-      const p1 = pixelPoints[i];
-      const p2 = pixelPoints[i + 1];
-      const p3 = pixelPoints[Math.min(pixelPoints.length - 1, i + 2)];
+  private buildCatmullRomRoute(points: Point[]): SmoothPoint[] {
+  const pixelPoints: SmoothPoint[] = points.map((point) => ({
+    px: this.cellToPx(point.x),
+    py: this.cellToPx(point.y),
+  }));
 
-      const distance = Phaser.Math.Distance.Between(p1.px, p1.py, p2.px, p2.py);
-      const steps = Math.max(8, Math.ceil(distance / 3));
+  return this.buildCatmullRomRouteFromPixelPoints(pixelPoints);
+}
 
-      for (let step = 1; step <= steps; step++) {
-        const t = step / steps;
+private buildCatmullRomRouteFromPixelPoints(
+  pixelPoints: SmoothPoint[]
+): SmoothPoint[] {
+  if (pixelPoints.length < 2) return [];
 
-        const px = this.catmullRom(p0.px, p1.px, p2.px, p3.px, t);
-        const py = this.catmullRom(p0.py, p1.py, p2.py, p3.py, t);
+  const result: SmoothPoint[] = [];
 
-        if (this.isSeaPixel(px, py)) {
-          result.push({ px, py });
-        } else {
-          result.push({
-            px: Phaser.Math.Linear(p1.px, p2.px, t),
-            py: Phaser.Math.Linear(p1.py, p2.py, t),
-          });
-        }
+  for (let i = 0; i < pixelPoints.length - 1; i++) {
+    const p0 = pixelPoints[Math.max(0, i - 1)];
+    const p1 = pixelPoints[i];
+    const p2 = pixelPoints[i + 1];
+    const p3 = pixelPoints[Math.min(pixelPoints.length - 1, i + 2)];
+
+    const distance = Phaser.Math.Distance.Between(p1.px, p1.py, p2.px, p2.py);
+    const steps = Math.max(8, Math.ceil(distance / 3));
+
+    for (let step = 1; step <= steps; step++) {
+      const t = step / steps;
+
+      const px = this.catmullRom(p0.px, p1.px, p2.px, p3.px, t);
+      const py = this.catmullRom(p0.py, p1.py, p2.py, p3.py, t);
+
+      if (this.isSeaPixel(px, py)) {
+        result.push({ px, py });
+      } else {
+        result.push({
+          px: Phaser.Math.Linear(p1.px, p2.px, t),
+          py: Phaser.Math.Linear(p1.py, p2.py, t),
+        });
       }
     }
-
-    return result;
   }
+
+  return result;
+}
 
   private catmullRom(
     p0: number,
