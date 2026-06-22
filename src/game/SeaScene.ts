@@ -5,7 +5,7 @@ import type { Cell, Ship } from "./types";
 const TILE_SIZE = 16;
 const PLAYER_MOVE_DELAY = 18;
 const NPC_MOVE_DELAY = 320;
-const NPC_COUNT = 9;
+const NPC_COUNT = 0;
 
 type Point = { x: number; y: number };
 type SmoothPoint = { px: number; py: number };
@@ -35,7 +35,6 @@ export class SeaScene extends Phaser.Scene {
 
   private npcs: NpcShip[] = [];
 
-  private gridRoute: Point[] = [];
   private smoothRoute: SmoothPoint[] = [];
   private target?: Point;
 
@@ -181,7 +180,6 @@ export class SeaScene extends Phaser.Scene {
     }
 
     this.target = { x, y };
-    this.gridRoute = gridPath;
 
     const fullGridPath = [start, ...gridPath];
     const simplified = this.simplifyByLineOfSight(fullGridPath);
@@ -229,7 +227,6 @@ export class SeaScene extends Phaser.Scene {
           this.ship.x = this.target.x;
           this.ship.y = this.target.y;
           this.target = undefined;
-          this.gridRoute = [];
         }
       },
     });
