@@ -32,6 +32,7 @@ export class SeaScene extends Phaser.Scene {
   private shipPx = 20 * TILE_SIZE + TILE_SIZE / 2;
   private shipPy = 20 * TILE_SIZE + TILE_SIZE / 2;
   private isPlayerMoving = false;
+  private activeTween?: Phaser.Tweens.Tween;
 
   private npcs: NpcShip[] = [];
 
@@ -227,11 +228,18 @@ this.plannedRoute = this.buildCatmullRomRouteFromCurrentPosition(simplified);
   }
 
   private confirmRoute() {
-    if (this.plannedRoute.length === 0) return;
+  if (this.plannedRoute.length === 0) return;
 
-    this.smoothRoute = [...this.plannedRoute];
-    this.plannedRoute = [];
+  if (this.activeTween) {
+    this.activeTween.stop();
+    this.activeTween = undefined;
   }
+
+  this.isPlayerMoving = false;
+
+  this.smoothRoute = [...this.plannedRoute];
+  this.plannedRoute = [];
+}
 
   private followSmoothRoute() {
     if (this.isPlayerMoving) return;
@@ -255,17 +263,18 @@ this.plannedRoute = this.buildCatmullRomRouteFromCurrentPosition(simplified);
       next.py
     );
 
-    this.tweens.add({
+    this.activeTween = this.tweens.add({
       targets: this,
       shipPx: next.px,
       shipPy: next.py,
       duration: (distance / PLAYER_SPEED) * 1000,
       ease: "Linear",
       onComplete: () => {
-        this.isPlayerMoving = false;
+  this.activeTween = undefined;
+  this.isPlayerMoving = false;
 
-        const cellX = this.pixelToCell(this.shipPx);
-        const cellY = this.pixelToCell(this.shipPy);
+  const cellX = this.pixelToCell(this.shipPx);
+  const cellY = this.pixelToCell(this.shipPy);
 
         if (this.world[cellY][cellX].type === "sea") {
           this.ship.x = cellX;
