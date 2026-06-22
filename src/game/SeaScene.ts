@@ -447,11 +447,13 @@ export class SeaScene extends Phaser.Scene {
       for (const cell of row) {
         let color = 0x0077be;
 
-        if (cell.type === "island") color = 0x228b22;
-        else if (cell.hasTreasure) color = 0xffd700;
-        else if (cell.depth < 25) color = 0x33ccff;
-        else if (cell.depth < 60) color = 0x0077be;
-        else color = 0x003366;
+        if (cell.type === "island") color = 0x2f7d32;
+else if (cell.hasTreasure) color = 0xffd700;
+else if (cell.depth < 25) color = 0x7fe7ff;
+else if (cell.depth < 70) color = 0x1db4d8;
+else if (cell.depth < 130) color = 0x0877b8;
+else if (cell.depth < 210) color = 0x064a91;
+else color = 0x022b5c;
 
         this.graphics.fillStyle(color);
         this.graphics.fillRect(
