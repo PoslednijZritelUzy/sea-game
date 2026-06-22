@@ -3,7 +3,7 @@ import { createWorld, MAP_SIZE } from "./world";
 import type { Cell, Ship } from "./types";
 
 const TILE_SIZE = 16;
-const PLAYER_MOVE_DELAY = 18;
+const PLAYER_MOVE_DELAY = 60;
 const NPC_MOVE_DELAY = 320;
 const NPC_COUNT = 0;
 
