@@ -37,6 +37,7 @@ export class SeaScene extends Phaser.Scene {
   private smoothRoute: SmoothPoint[] = [];
   private plannedRoute: SmoothPoint[] = [];
   private target?: Point;
+  private plannedTarget?: Point;
 
   private shipPath: TrailPoint[] = [
     {
@@ -87,16 +88,18 @@ export class SeaScene extends Phaser.Scene {
   }
 
   update() {
-    this.followSmoothRoute();
-    this.updateNpcShips();
+  this.followSmoothRoute();
+  this.updateNpcShips();
 
-    if (this.spaceKey && Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
-      this.dig();
-    }
-
-    this.drawWorld();
-    this.updateHud();
+  if (this.spaceKey && Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
+    this.dig();
   }
+
+  this.updatePlannedRoutePreview();
+
+  this.drawWorld();
+  this.updateHud();
+}
 
   private createSailButton() {
     this.sailButton = this.add
@@ -114,11 +117,11 @@ export class SeaScene extends Phaser.Scene {
       .setDepth(1001);
 
     const onClick = (
-      pointer: Phaser.Input.Pointer,
-      localX: number,
-      localY: number,
-      event: Phaser.Types.Input.EventData
-    ) => {
+  _pointer: Phaser.Input.Pointer,
+  _localX: number,
+  _localY: number,
+  event: Phaser.Types.Input.EventData
+) => {
       event.stopPropagation();
       this.confirmRoute();
     };
@@ -191,47 +194,36 @@ export class SeaScene extends Phaser.Scene {
   }
 
   private selectTarget(pointer: Phaser.Input.Pointer) {
-    if (pointer.y < 52 && pointer.x > 470) return;
+  if (pointer.y < 52 && pointer.x > 470) return;
 
-    const x = Math.floor(pointer.x / TILE_SIZE);
-    const y = Math.floor(pointer.y / TILE_SIZE);
+  const x = Math.floor(pointer.x / TILE_SIZE);
+  const y = Math.floor(pointer.y / TILE_SIZE);
 
-    if (x < 0 || x >= MAP_SIZE) return;
-    if (y < 0 || y >= MAP_SIZE) return;
+  if (x < 0 || x >= MAP_SIZE) return;
+  if (y < 0 || y >= MAP_SIZE) return;
 
-    if (this.world[y][x].type === "island") {
-      console.log("Cannot sail to island.");
-      return;
-    }
-
-    const start = {
-      x: this.pixelToCell(this.shipPx),
-      y: this.pixelToCell(this.shipPy),
-    };
-
-    const gridPath = this.findGridPath(start, { x, y });
-
-    if (gridPath.length === 0) {
-      console.log("No route found.");
-      return;
-    }
-
-    this.target = { x, y };
-
-    const fullGridPath = [start, ...gridPath];
-    const simplified = this.simplifyByLineOfSight(fullGridPath);
-
-    this.plannedRoute = this.buildCatmullRomRouteFromCurrentPosition(
-      simplified
-    );
+  if (this.world[y][x].type === "island") {
+    console.log("Cannot sail to island.");
+    return;
   }
+
+  this.plannedTarget = { x, y };
+this.target = { x, y };
+this.plannedRoute = this.buildRouteFromCurrentPositionTo({ x, y });
+}
 
   private confirmRoute() {
-    if (this.plannedRoute.length === 0) return;
+  if (!this.plannedTarget) return;
 
-    this.smoothRoute = [...this.plannedRoute];
-    this.plannedRoute = [];
-  }
+  const newRoute = this.buildRouteFromCurrentPositionTo(this.plannedTarget);
+
+  if (newRoute.length === 0) return;
+
+  this.smoothRoute = newRoute;
+  this.plannedRoute = [];
+  this.target = this.plannedTarget;
+  this.plannedTarget = undefined;
+}
 
   private followSmoothRoute() {
     if (this.smoothRoute.length === 0) return;
@@ -338,6 +330,12 @@ export class SeaScene extends Phaser.Scene {
     path.reverse();
     return path.slice(1);
   }
+
+  private updatePlannedRoutePreview() {
+  if (!this.plannedTarget) return;
+
+  this.plannedRoute = this.buildRouteFromCurrentPositionTo(this.plannedTarget);
+}
 
   private simplifyByLineOfSight(path: Point[]): Point[] {
     if (path.length <= 2) return path;
@@ -617,4 +615,24 @@ export class SeaScene extends Phaser.Scene {
 
     this.graphics.strokePath();
   }
+
+  private buildRouteFromCurrentPositionTo(destination: Point): SmoothPoint[] {
+  const start = {
+    x: this.pixelToCell(this.shipPx),
+    y: this.pixelToCell(this.shipPy),
+  };
+
+  const gridPath = this.findGridPath(start, destination);
+
+  if (gridPath.length === 0) {
+    console.log("No route found.");
+    return [];
+  }
+
+  const fullGridPath = [start, ...gridPath];
+  const simplified = this.simplifyByLineOfSight(fullGridPath);
+
+  return this.buildCatmullRomRouteFromCurrentPosition(simplified);
+}
+
 }
