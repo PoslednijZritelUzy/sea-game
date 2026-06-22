@@ -11,11 +11,11 @@ type Island = {
 };
 
 const ISLANDS: Island[] = [
-  { x: 8, y: 8, radius: 6.2, stretchX: 1.25, stretchY: 0.9 },
-  { x: 31, y: 8, radius: 5.8, stretchX: 1.0, stretchY: 1.2 },
-  { x: 9, y: 31, radius: 6.5, stretchX: 1.15, stretchY: 1.0 },
-  { x: 31, y: 31, radius: 6.1, stretchX: 0.95, stretchY: 1.25 },
-  { x: 21, y: 20, radius: 6.8, stretchX: 1.3, stretchY: 0.85 },
+  { x: 7, y: 7, radius: 8.8, stretchX: 1.35, stretchY: 1.0 },
+  { x: 33, y: 7, radius: 8.2, stretchX: 1.05, stretchY: 1.35 },
+  { x: 7, y: 33, radius: 8.4, stretchX: 1.3, stretchY: 1.05 },
+  { x: 33, y: 33, radius: 8.0, stretchX: 1.05, stretchY: 1.35 },
+  { x: 20, y: 20, radius: 8.6, stretchX: 1.45, stretchY: 0.95 },
 ];
 
 export function createWorld(): Cell[][] {
@@ -26,20 +26,21 @@ export function createWorld(): Cell[][] {
 
     for (let x = 0; x < MAP_SIZE; x++) {
       const islandValue = getIslandValue(x, y);
-      const nearestCoastDistance = getNearestCoastDistance(x, y);
-
       const isIsland = islandValue >= 1;
+      const coastDistance = getNearestCoastDistance(x, y);
 
-      const depth = isIsland
-        ? 0
-        : getOceanDepth(x, y, nearestCoastDistance);
+      const depth = isIsland ? 0 : getOceanDepth(x, y, coastDistance);
 
       row.push({
         x,
         y,
         depth,
         type: isIsland ? "island" : "sea",
-        hasTreasure: !isIsland && nearestCoastDistance < 4 && Math.random() < 0.04,
+        hasTreasure:
+          !isIsland &&
+          coastDistance > 1 &&
+          coastDistance < 5 &&
+          Math.random() < 0.05,
       });
     }
 
@@ -47,7 +48,7 @@ export function createWorld(): Cell[][] {
   }
 
   world[20][20].type = "sea";
-  world[20][20].depth = 45;
+  world[20][20].depth = 120;
   world[20][20].hasTreasure = false;
 
   return world;
@@ -60,12 +61,13 @@ function getIslandValue(x: number, y: number): number {
     const dx = (x - island.x) / (island.radius * island.stretchX);
     const dy = (y - island.y) / (island.radius * island.stretchY);
 
-    const base = 1 - Math.sqrt(dx * dx + dy * dy);
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    const base = 1 - distance;
 
     const coastNoise =
-      Math.sin(x * 0.75 + y * 0.31) * 0.12 +
-      Math.sin(x * 1.37 - y * 0.58) * 0.08 +
-      Math.sin((x + y) * 0.43) * 0.07;
+      Math.sin(x * 0.55 + y * 0.21) * 0.22 +
+      Math.sin(x * 1.15 - y * 0.42) * 0.16 +
+      Math.sin((x + y) * 0.31) * 0.12;
 
     maxValue = Math.max(maxValue, base + coastNoise);
   }
@@ -96,19 +98,19 @@ function getOceanDepth(x: number, y: number, coastDistance: number): number {
   let depth: number;
 
   if (coastDistance < 2) {
-    depth = 8 + coastDistance * 12;
+    depth = 35 + coastDistance * 20;
   } else if (coastDistance < 5) {
-    depth = 30 + (coastDistance - 2) * 14;
+    depth = 80 + (coastDistance - 2) * 22;
   } else if (coastDistance < 10) {
-    depth = 75 + (coastDistance - 5) * 13;
+    depth = 150 + (coastDistance - 5) * 20;
   } else {
-    depth = 145 + (coastDistance - 10) * 8;
+    depth = 260 + (coastDistance - 10) * 14;
   }
 
-  depth += oceanNoise * 18;
-  depth += trench * 90;
+  depth += oceanNoise * 25;
+  depth += trench * 150;
 
-  return Math.max(1, Math.floor(depth));
+  return Math.max(20, Math.floor(depth));
 }
 
 function getOceanNoise(x: number, y: number): number {
@@ -120,7 +122,7 @@ function getOceanNoise(x: number, y: number): number {
 }
 
 function getTrenchValue(x: number, y: number): number {
-  const lineX = 24 + Math.sin(y * 0.22) * 5;
+  const lineX = 23 + Math.sin(y * 0.22) * 5;
   const distance = Math.abs(x - lineX);
 
   if (distance > 5) return 0;
