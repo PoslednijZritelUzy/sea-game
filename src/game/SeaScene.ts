@@ -3,7 +3,7 @@ import { createWorld, MAP_SIZE } from "./world";
 import type { Cell, Ship } from "./types";
 
 const TILE_SIZE = 16;
-const PLAYER_MOVE_DELAY = 60;
+const PLAYER_SPEED = 30;
 const NPC_MOVE_DELAY = 320;
 const NPC_COUNT = 0;
 
@@ -48,9 +48,12 @@ export class SeaScene extends Phaser.Scene {
   ];
 
   private spaceKey?: Phaser.Input.Keyboard.Key;
-  private enterKey?: Phaser.Input.Keyboard.Key;
   private graphics?: Phaser.GameObjects.Graphics;
   private hudText?: Phaser.GameObjects.Text;
+
+  private sailButton?: Phaser.GameObjects.Rectangle;
+  private sailButtonText?: Phaser.GameObjects.Text;
+
   private treasuresFound = 0;
 
   constructor() {
@@ -67,10 +70,6 @@ export class SeaScene extends Phaser.Scene {
       Phaser.Input.Keyboard.KeyCodes.SPACE
     );
 
-    this.enterKey = this.input.keyboard?.addKey(
-      Phaser.Input.Keyboard.KeyCodes.ENTER
-    );
-
     this.graphics = this.add.graphics();
 
     this.hudText = this.add.text(8, 8, "", {
@@ -81,16 +80,14 @@ export class SeaScene extends Phaser.Scene {
       padding: { x: 6, y: 4 },
     });
 
+    this.createSailButton();
+
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       this.selectTarget(pointer);
     });
   }
 
   update() {
-    if (this.enterKey && Phaser.Input.Keyboard.JustDown(this.enterKey)) {
-      this.confirmRoute();
-    }
-
     this.followSmoothRoute();
     this.updateNpcShips();
 
@@ -100,6 +97,34 @@ export class SeaScene extends Phaser.Scene {
 
     this.drawWorld();
     this.updateHud();
+  }
+
+  private createSailButton() {
+    this.sailButton = this.add
+      .rectangle(560, 28, 170, 36, 0x00aa44)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(1000);
+
+    this.sailButtonText = this.add
+      .text(490, 18, "ОТПРАВИТЬСЯ", {
+        fontFamily: "Arial",
+        fontSize: "14px",
+        color: "#ffffff",
+      })
+      .setDepth(1001);
+
+    this.sailButton.on(
+      "pointerdown",
+      (
+        pointer: Phaser.Input.Pointer,
+        localX: number,
+        localY: number,
+        event: Phaser.Types.Input.EventData
+      ) => {
+        event.stopPropagation();
+        this.confirmRoute();
+      }
+    );
   }
 
   private cellToPx(value: number): number {
@@ -166,7 +191,6 @@ export class SeaScene extends Phaser.Scene {
   }
 
   private selectTarget(pointer: Phaser.Input.Pointer) {
-  
     const x = Math.floor(pointer.x / TILE_SIZE);
     const y = Math.floor(pointer.y / TILE_SIZE);
 
@@ -196,17 +220,14 @@ export class SeaScene extends Phaser.Scene {
     const simplified = this.simplifyByLineOfSight(fullGridPath);
 
     this.plannedRoute = this.buildCatmullRomRoute(simplified);
-    this.smoothRoute = [];
   }
 
   private confirmRoute() {
-  if (this.plannedRoute.length === 0) return;
+    if (this.plannedRoute.length === 0) return;
 
-  this.smoothRoute = [...this.plannedRoute];
-  this.plannedRoute = [];
-
-  this.target = this.target;
-}
+    this.smoothRoute = [...this.plannedRoute];
+    this.plannedRoute = [];
+  }
 
   private followSmoothRoute() {
     if (this.isPlayerMoving) return;
@@ -223,11 +244,18 @@ export class SeaScene extends Phaser.Scene {
       createdAt: this.time.now,
     });
 
+    const distance = Phaser.Math.Distance.Between(
+      this.shipPx,
+      this.shipPy,
+      next.px,
+      next.py
+    );
+
     this.tweens.add({
       targets: this,
       shipPx: next.px,
       shipPy: next.py,
-      duration: PLAYER_MOVE_DELAY,
+      duration: (distance / PLAYER_SPEED) * 1000,
       ease: "Linear",
       onComplete: () => {
         this.isPlayerMoving = false;
@@ -249,10 +277,6 @@ export class SeaScene extends Phaser.Scene {
           this.ship.y = this.target.y;
           this.target = undefined;
         }
-        if (this.plannedRoute.length > 0) {
-  this.smoothRoute = [...this.plannedRoute];
-  this.plannedRoute = [];
-}
       },
     });
   }
@@ -445,7 +469,7 @@ export class SeaScene extends Phaser.Scene {
         `Depth: ${cell.depth}`,
         `Treasures: ${this.treasuresFound}`,
         `Click: plan route`,
-        `Enter: confirm sailing`,
+        `Button: sail`,
         `Space: dig`,
         `Planned: ${this.plannedRoute.length}`,
         `Sailing: ${this.smoothRoute.length}`,
@@ -513,13 +537,13 @@ export class SeaScene extends Phaser.Scene {
     if (!this.graphics) return;
 
     const route =
-      this.smoothRoute.length > 0 ? this.smoothRoute : this.plannedRoute;
+      this.plannedRoute.length > 0 ? this.plannedRoute : this.smoothRoute;
 
     if (route.length === 0) return;
 
     this.graphics.lineStyle(
       2,
-      this.smoothRoute.length > 0 ? 0x66ccff : 0xffffff,
+      this.plannedRoute.length > 0 ? 0xffffff : 0x66ccff,
       0.55
     );
 
